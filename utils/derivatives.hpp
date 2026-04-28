@@ -2,12 +2,20 @@
 
 #include <optional>
 #include <functional>
+#include <type_traits>
+#include <utility>
 
-#include "matrix.hpp"
-#include "vector.hpp"
+#include "utils/matrix.hpp"
+#include "utils/vector.hpp"
 
 template <typename T>
 class Gradient {
+    static_assert(
+        std::is_arithmetic_v<std::remove_cv_t<T>> &&
+        !std::is_same_v<std::remove_cv_t<T>, bool>,
+        "Gradient<T>: T must be a real or integer numeric type, excluding complex/bool"
+    );
+
     using Func = std::function<Vector<T>(const Vector<T>&)>;
     Func evaluator_;
     mutable std::optional<Vector<T>> cached_result_;
@@ -31,6 +39,12 @@ public:
 
 template <typename T>
 class Hessian {
+    static_assert(
+        std::is_arithmetic_v<std::remove_cv_t<T>> &&
+        !std::is_same_v<std::remove_cv_t<T>, bool>,
+        "Hessian<T>: T must be a real or integer numeric type, excluding complex/bool"
+    );
+
     using Func = std::function<Matrix<T>(const Vector<T>&)>;
     Func evaluator_;
     mutable std::optional<Matrix<T>> cached_result_;

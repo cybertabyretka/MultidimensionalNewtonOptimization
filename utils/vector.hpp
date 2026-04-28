@@ -1,10 +1,23 @@
 #pragma once
 
+#include <cmath>
+#include <initializer_list>
+#include <numeric>
+#include <string>
+#include <type_traits>
+#include <vector>
+
 #include "exceptions/vector_matrix_exceptions.hpp"
 #include "exceptions/numerical_exceptions.hpp"
 
 template <typename T>
 class Vector {
+    static_assert(
+        std::is_arithmetic_v<std::remove_cv_t<T>> &&
+        !std::is_same_v<std::remove_cv_t<T>, bool>,
+        "Vector<T>: T must be a real or integer numeric type, excluding complex/bool"
+    );
+
     std::vector<T> data_;
 
     void check_index(size_t idx) const {

@@ -13,9 +13,3 @@ public:
     explicit ConvergenceError(const std::string& detail)
         : OptimizationError("Convergence Error: " + detail) {}
 };
-
-class InvalidIntervalError : public OptimizationError {
-public:
-    explicit InvalidIntervalError(const std::string& detail)
-        : OptimizationError("Invalid Interval: " + detail) {}
-};

@@ -1,9 +1,23 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <type_traits>
+#include <vector>
+
+#include "utils/vector.hpp"
+
 #include "exceptions/vector_matrix_exceptions.hpp"
 
 template <typename T>
 class Matrix {
+    static_assert(
+        std::is_arithmetic_v<std::remove_cv_t<T>> &&
+        !std::is_same_v<std::remove_cv_t<T>, bool>,
+        "Matrix<T>: T must be a real or integer numeric type, excluding complex/bool"
+    );
+
     size_t rows_, cols_;
     std::vector<T> data_;
 
@@ -114,10 +128,7 @@ public:
         if (!is_symmetric(1e-10)) return false;
 
         const size_t n = rows_;
-        using RealType = std::conditional_t<
-            std::is_compound_v<T>, 
-            typename T::value_type, 
-            std::common_type_t<T, double>>;
+        using RealType = std::common_type_t<std::remove_cv_t<T>, double>;
         Matrix<RealType> L(n, n, RealType{0});
 
         for (size_t i = 0; i < n; ++i) {
@@ -139,7 +150,7 @@ public:
         return true;
     }
 
-    static Vector<T> solve(const Matrix& A, const Vector<T>& b) {
+    static Vector<T> solve(Matrix A, Vector<T> b) {
         if (A.rows_ != A.cols_) {
             throw DimensionMismatchError("Matrix must be square for solve");
         }
