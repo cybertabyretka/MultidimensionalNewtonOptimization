@@ -11,77 +11,64 @@ permissions:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
-
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         include:
           - os: windows-latest
             output: mdo-windows.exe
+            artifact_name: mdo-windows
           - os: ubuntu-latest
             output: mdo-linux
+            artifact_name: mdo-linux
           - os: macos-latest
             output: mdo-darwin
+            artifact_name: mdo-darwin
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up C++ compiler
+      - name: Install compiler (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y g++
 
-      - name: Set up C++ compiler
-        if: runner.os == 'macOS'
+      - name: Build
+        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
         run: |
-          # macOS has clang by default
-          echo "Using clang"
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            g++ -std=c++20 -I . -Wall -Wextra -O2 -static app/main.cpp utils/grid_generator.cpp newton_optimizer.cpp -o mdo-windows.exe
+          elif [ "${{ runner.os }}" = "Linux" ]; then
+            g++ -std=c++20 -I . -Wall -Wextra -O2 -static app/main.cpp utils/grid_generator.cpp newton_optimizer.cpp -o mdo-linux
+          else
+            g++ -std=c++20 -I . -Wall -Wextra -O2 -static-libstdc++ app/main.cpp utils/grid_generator.cpp newton_optimizer.cpp -o mdo-darwin
+          fi
 
-      - name: Set up C++ compiler
-        if: runner.os == 'Windows'
-        run: |
-          echo "Using g++"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.output }}
+          retention-days: 1
 
-      - name: Build on Windows
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          g++ -std=c++20 -I . -Wall -Wextra -O2 -static app/main.cpp utils/grid_generator.cpp newton_optimizer.cpp -o mdo-windows.exe
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Build on Ubuntu
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          g++ -std=c++20 -I . -Wall -Wextra -O2 -static app/main.cpp utils/grid_generator.cpp newton_optimizer.cpp -o mdo-linux
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: mdo-*
+          path: ./binaries
+          merge-multiple: true
 
-      - name: Build on macOS
-        if: matrix.os == 'macos-latest'
-        run: |
-          g++ -std=c++20 -I . -Wall -Wextra -O2 -static-libstdc++ app/main.cpp utils/grid_generator.cpp newton_optimizer.cpp -o mdo-darwin
-
-      - name: Check Windows artifact
-        if: matrix.os == 'windows-latest'
-        shell: bash
-        run: |
-          echo "= list windows artifact ="
-          ls -la mdo-windows.exe
-
-      - name: Check Linux artifact
-        if: matrix.os == 'ubuntu-latest'
-        shell: bash
-        run: |
-          echo "= list linux artifact ="
-          ls -la mdo-linux
-
-      - name: Check macOS artifact
-        if: matrix.os == 'macos-latest'
-        shell: bash
-        run: |
-          echo "= list macos artifact ="
-          ls -la mdo-darwin
-
-      - name: Upload Release
+      - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
+          draft: false
+          generate_release_notes: true
           files: |
-            mdo-windows.exe
-            mdo-linux
-            mdo-darwin
+            binaries/mdo-windows.exe
+            binaries/mdo-linux
+            binaries/mdo-darwin
