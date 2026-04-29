@@ -1,3 +1,5 @@
+#pragma once
+
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -224,6 +226,14 @@ NewtonNumericConfig load_newton_numeric_config_from_xml(const std::string& filen
 
     if (!get_tag_double(xml, "max_regularization", cfg.max_regularization)) {
         throw ConfigParseException("Failed to read max_regularization from config");
+    }
+
+    if (!get_tag_double(xml, "gradient_step", cfg.gradient_step)) {
+        throw ConfigParseException("Failed to read gradient_step from config");
+    }
+
+    if (!get_tag_double(xml, "hessian_step", cfg.hessian_step)) {
+        throw ConfigParseException("Failed to read hessian_step from config");
     }
 
     return cfg;

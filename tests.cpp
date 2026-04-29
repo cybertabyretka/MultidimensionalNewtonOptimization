@@ -33,7 +33,8 @@ int main() {
     test_optimizer_rosenbrock();
     test_optimizer_saddle_point();
     test_optimizer_multiple_minima();
-    test_optimizer_missing_functions();
-    test_optimizer_incompatible_dimensions();
+    
+    test_numerical_gradient();
+    test_numerical_hessian();
     return 0;
 }

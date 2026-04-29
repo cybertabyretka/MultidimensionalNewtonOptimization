@@ -19,3 +19,9 @@ public:
     explicit ConvergenceError(const std::string& detail)
         : OptimizationError("Convergence Error: " + detail) {}
 };
+
+class ObjectiveEvaluationError : public OptimizationError {
+public:
+    explicit ObjectiveEvaluationError(const std::string& detail)
+        : OptimizationError("Objective Evaluation Error: " + detail) {}
+};

@@ -7,8 +7,6 @@
 
 struct NewtonFunctionSet {
     std::function<double(const Vector<double>&)> objective;
-    std::function<Vector<double>(const Vector<double>&)> gradient;
-    std::function<Matrix<double>(const Vector<double>&)> hessian;
 };
 
 struct NewtonSearchConfig {
@@ -31,6 +29,9 @@ struct NewtonNumericConfig {
     double initial_regularization = 1e-8;
     double regularization_growth = 10.0;
     double max_regularization = 1e8;
+
+    double gradient_step = 1e-6;
+    double hessian_step = 1e-4;
 };
 
 struct NewtonOptimizerConfig {

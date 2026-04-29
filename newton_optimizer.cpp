@@ -23,21 +23,21 @@
 #include "exceptions/intervals_exceptions.hpp"
 
 const std::vector<OptimizedPoint>& NewtonOptimizer::get_stationary_points() const {
-    return stationary_points_; 
+    return stationary_points_;
 }
+
 const std::vector<OptimizedPoint>& NewtonOptimizer::get_minimum_points() const {
-    return minimum_points_; 
+    return minimum_points_;
 }
 
 NewtonOptimizer::NewtonOptimizer(NewtonOptimizerConfig config)
     : config_(std::move(config)),
-      gradient_(config_.problem.gradient),
-      hessian_(config_.problem.hessian) {
+      objective_(config_.problem.objective) {
     validate_config();
 }
 
 bool NewtonOptimizer::is_minimum_point(const Vector<double>& x) const {
-    Matrix<double> H = hessian_.evaluate(x);
+    Matrix<double> H = numerical_hessian(objective_, x, config_.numeric.hessian_step);
     return H.is_positive_definite();
 }
 
@@ -58,8 +58,8 @@ bool NewtonOptimizer::is_duplicate(
 }
 
 void NewtonOptimizer::validate_config() const {
-    if (!config_.problem.objective || !config_.problem.gradient || !config_.problem.hessian) {
-        throw InputOptimizationError("Objective, gradient and hessian must be provided");
+    if (!objective_) {
+        throw InputOptimizationError("Objective must be provided");
     }
 }
 
@@ -68,7 +68,8 @@ Vector<double> NewtonOptimizer::regularized_newton_direction(
     const Vector<double>& g,
     bool logs
 ) const {
-    Matrix<double> H = hessian_.evaluate(x);
+    Matrix<double> H = numerical_hessian(objective_, x, config_.numeric.hessian_step);
+
     if (H.rows() != H.cols() || H.rows() != x.size()) {
         throw DimensionMismatchError("Hessian dimension mismatch");
     }
@@ -134,7 +135,7 @@ NewtonResult NewtonOptimizer::solve_from_start(
     }
 
     Vector<double> x = start;
-    double fx = config_.problem.objective(x);
+    double fx = objective_(x);
     bool converged = false;
     size_t iter = 0;
     if (logs) {
@@ -142,7 +143,7 @@ NewtonResult NewtonOptimizer::solve_from_start(
                   << ", f(x0) = " << fx << '\n';
     }
     for (; iter < config_.numeric.max_iter; ++iter) {
-        const Vector<double> g = gradient_.evaluate(x);
+        const Vector<double> g = numerical_gradient(objective_, x, config_.numeric.gradient_step);
         const double gnorm = g.norm();
         if (logs) {
             std::cout << "\n[Newton] Iteration " << iter << '\n'
@@ -153,7 +154,8 @@ NewtonResult NewtonOptimizer::solve_from_start(
         }
         if (gnorm < config_.numeric.grad_tol) {
             converged = true;
-            fx = config_.problem.objective(x);
+            fx = objective_(x);
+
             if (logs) {
                 std::cout << "[Newton] Gradient norm below tolerance, stop.\n"
                           << "  x*      = " << x << '\n'
@@ -185,7 +187,7 @@ NewtonResult NewtonOptimizer::solve_from_start(
         while (alpha >= config_.numeric.min_alpha) {
             candidate = x + d * alpha;
             try {
-                fc = config_.problem.objective(candidate);
+                fc = objective_(candidate);
             } catch (const std::exception&) {
                 if (logs) {
                     std::cout << "  alpha = " << alpha
@@ -221,7 +223,9 @@ NewtonResult NewtonOptimizer::solve_from_start(
         if ((candidate - x).norm() < config_.numeric.step_tol) {
             x = candidate;
             fx = fc;
-            const double final_gnorm = gradient_.evaluate(x).norm();
+            const double final_gnorm = numerical_gradient(
+                objective_, x, config_.numeric.gradient_step
+            ).norm();
             converged = final_gnorm < config_.numeric.grad_tol;
             if (logs) {
                 std::cout << "[Newton] Step norm below tolerance.\n"
@@ -244,7 +248,7 @@ NewtonResult NewtonOptimizer::solve_from_start(
             }
         }
     }
-    const Vector<double> gfinal = gradient_.evaluate(x);
+    const Vector<double> gfinal = numerical_gradient(objective_, x, config_.numeric.gradient_step);
     const double gnorm = gfinal.norm();
     converged = gnorm < config_.numeric.grad_tol;
     if (logs) {

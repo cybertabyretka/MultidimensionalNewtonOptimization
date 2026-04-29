@@ -1,4 +1,4 @@
-#include "exceptions/latex_parser_exceptions.hpp"
+#pragma once
 
 #include <algorithm>
 #include <cctype>
@@ -8,6 +8,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include "exceptions/latex_parser_exceptions.hpp"
 
 struct Monomial {
     double coeff = 0.0;

@@ -5,14 +5,12 @@
 #include <functional>
 #include <iomanip>
 #include <iostream>
-#include <numeric>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "newton_configs.hpp"
-
 #include "utils/vector.hpp"
 #include "utils/derivatives.hpp"
 
@@ -31,8 +29,7 @@ struct NewtonResult {
 
 class NewtonOptimizer {
     NewtonOptimizerConfig config_;
-    Gradient<double> gradient_;
-    Hessian<double> hessian_;
+    std::function<double(const Vector<double>&)> objective_;
 
     std::vector<OptimizedPoint> stationary_points_;
     std::vector<OptimizedPoint> minimum_points_;
@@ -44,8 +41,8 @@ class NewtonOptimizer {
     );
 
     void validate_config() const;
-    
-     Vector<double> regularized_newton_direction(
+
+    Vector<double> regularized_newton_direction(
         const Vector<double>& x,
         const Vector<double>& g,
         bool logs

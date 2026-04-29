@@ -1,67 +1,104 @@
 #pragma once
 
-#include <optional>
+#include <cmath>
+#include <cstddef>
 #include <functional>
+#include <stdexcept>
 #include <type_traits>
-#include <utility>
+#include <vector>
 
 #include "utils/matrix.hpp"
 #include "utils/vector.hpp"
 
-template <typename T>
-class Gradient {
-    static_assert(
-        std::is_arithmetic_v<std::remove_cv_t<T>> &&
-        !std::is_same_v<std::remove_cv_t<T>, bool>,
-        "Gradient<T>: T must be a real or integer numeric type, excluding complex/bool"
-    );
+#include "exceptions/optimization_exceptions.hpp"
 
-    using Func = std::function<Vector<T>(const Vector<T>&)>;
-    Func evaluator_;
-    mutable std::optional<Vector<T>> cached_result_;
-    mutable std::optional<Vector<T>> last_point_;
+inline double derivative_step(double x, double base_step) {
+    return base_step * std::max(1.0, std::abs(x));
+}
 
-public:
-    explicit Gradient(Func f) : evaluator_(std::move(f)) {}
+template <typename Func>
+Vector<double> numerical_gradient(
+    const Func& f,
+    const Vector<double>& x,
+    double base_step = 1e-6
+) {
+    const size_t n = x.size();
+    Vector<double> g(n, 0.0);
 
-    Vector<T> evaluate(const Vector<T>& x) const {
-        if (last_point_ && last_point_->equals(x)) {
-            return *cached_result_;
+    for (size_t i = 0; i < n; ++i) {
+        const double h = derivative_step(x[i], base_step);
+
+        Vector<double> xp = x;
+        Vector<double> xm = x;
+        xp[i] += h;
+        xm[i] -= h;
+        try {
+            const double fp = f(xp);
+            const double fm = f(xm);
+            g[i] = (fp - fm) / (2.0 * h);
+        } catch (const std::exception& e) {
+            throw ObjectiveEvaluationError("Failed to evaluate objective during gradient computation: " + std::string(e.what()));
         }
-        cached_result_ = evaluator_(x);
-        last_point_ = x;
-        return *cached_result_;
     }
 
-    bool is_computed() const noexcept { return static_cast<bool>(cached_result_); }
-    void clear_cache() { cached_result_.reset(); last_point_.reset(); }
-};
+    return g;
+}
 
-template <typename T>
-class Hessian {
-    static_assert(
-        std::is_arithmetic_v<std::remove_cv_t<T>> &&
-        !std::is_same_v<std::remove_cv_t<T>, bool>,
-        "Hessian<T>: T must be a real or integer numeric type, excluding complex/bool"
-    );
+template <typename Func>
+Matrix<double> numerical_hessian(
+    const Func& f,
+    const Vector<double>& x,
+    double base_step = 1e-4
+) {
+    const size_t n = x.size();
+    Matrix<double> H(n, n, 0.0);
+    const double fx = f(x);
 
-    using Func = std::function<Matrix<T>(const Vector<T>&)>;
-    Func evaluator_;
-    mutable std::optional<Matrix<T>> cached_result_;
-    mutable std::optional<Vector<T>> last_point_;
-
-public:
-    explicit Hessian(Func f) : evaluator_(std::move(f)) {}
-
-    Matrix<T> evaluate(const Vector<T>& x) const {
-        if (last_point_ && last_point_->equals(x)) {
-            return *cached_result_;
-        }
-        cached_result_ = evaluator_(x);
-        last_point_ = x;
-        return *cached_result_;
+    std::vector<double> h(n);
+    for (size_t i = 0; i < n; ++i) {
+        h[i] = derivative_step(x[i], base_step);
     }
 
-    bool is_computed() const noexcept { return static_cast<bool>(cached_result_); }
-    void clear_cache() { cached_result_.reset(); last_point_.reset(); }
-};
+    for (size_t i = 0; i < n; ++i) {
+        {
+            Vector<double> xp = x;
+            Vector<double> xm = x;
+            xp[i] += h[i];
+            xm[i] -= h[i];
+            try {
+                const double fp = f(xp);
+                const double fm = f(xm);
+                H.at(i, i) = (fp - 2.0 * fx + fm) / (h[i] * h[i]);
+            } catch (const std::exception& e) {
+                throw ObjectiveEvaluationError("Failed to evaluate objective during Hessian computation: " + std::string(e.what()));
+            }
+        }
+
+        for (size_t j = i + 1; j < n; ++j) {
+            Vector<double> xpp = x;
+            Vector<double> xpm = x;
+            Vector<double> xmp = x;
+            Vector<double> xmm = x;
+
+            xpp[i] += h[i]; xpp[j] += h[j];
+            xpm[i] += h[i]; xpm[j] -= h[j];
+            xmp[i] -= h[i]; xmp[j] += h[j];
+            xmm[i] -= h[i]; xmm[j] -= h[j];
+
+            try {
+                const double fpp = f(xpp);
+                const double fpm = f(xpm);
+                const double fmp = f(xmp);
+                const double fmm = f(xmm);
+
+                const double value = (fpp - fpm - fmp + fmm) / (4.0 * h[i] * h[j]);
+                H.at(i, j) = value;
+                H.at(j, i) = value;
+            } catch (const std::exception& e) {
+                throw ObjectiveEvaluationError("Failed to evaluate objective during Hessian computation: " + std::string(e.what()));
+            }
+        }
+    }
+
+    return H;
+}
