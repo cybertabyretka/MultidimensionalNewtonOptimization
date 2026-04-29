@@ -45,12 +45,16 @@ class NewtonOptimizer {
 
     void validate_config() const;
     
-    Vector<double> regularized_newton_direction(
+     Vector<double> regularized_newton_direction(
         const Vector<double>& x,
-        const Vector<double>& g
+        const Vector<double>& g,
+        bool logs
     ) const;
 
-    NewtonResult solve_from_start(const Vector<double>& start) const;
+    NewtonResult solve_from_start(
+        const Vector<double>& start,
+        bool logs
+    ) const;
 
     bool is_minimum_point(const Vector<double>& x) const;
 
@@ -62,7 +66,7 @@ public:
 
     void clear_results();
 
-    NewtonResult optimize(const Vector<double>& start_point) const;
+    NewtonResult optimize(const Vector<double>& start_point, bool logs = false) const;
 
-    void optimize(const std::vector<Vector<double>>& start_points);
+    void optimize(const std::vector<Vector<double>>& start_points, bool logs = false);
 };

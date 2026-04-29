@@ -8,6 +8,12 @@ public:
         : std::runtime_error("Optimization Error: " + message) {}
 };
 
+class InputOptimizationError : public OptimizationError {
+public:
+    explicit InputOptimizationError(const std::string& detail)
+        : OptimizationError("Input Optimization Error: " + detail) {}
+};
+
 class ConvergenceError : public OptimizationError {
 public:
     explicit ConvergenceError(const std::string& detail)

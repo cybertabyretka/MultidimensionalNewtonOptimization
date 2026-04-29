@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <ostream>
 #include <type_traits>
 #include <vector>
 
@@ -30,7 +31,10 @@ class Matrix {
     }
 
 public:
-    Matrix(size_t r = 0, size_t c = 0, T val = T{}) : rows_(r), cols_(c), data_(r * c, val) {}
+    Matrix(size_t r = 0, size_t c = 0, T val = T{}) 
+        : rows_(r), 
+          cols_(c), 
+          data_(r * c, val) {}
 
     size_t rows() const noexcept { return rows_; }
     size_t cols() const noexcept { return cols_; }
@@ -99,6 +103,28 @@ public:
             res[i] = sum;
         }
         return res;
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const Matrix& M) {
+        os << "[";
+        for (size_t i = 0; i < M.rows_; ++i) {
+            if (i != 0) {
+                os << " ";
+            }
+            os << "[";
+            for (size_t j = 0; j < M.cols_; ++j) {
+                os << M.at(i,j);
+                if (j + 1 < M.cols_) {
+                    os << ", ";
+                }
+            }
+            os << "]";
+            if (i + 1 < M.rows_) {
+                os << '\n';
+            }
+        }
+        os << "]";
+        return os;
     }
 
     Matrix transpose() const {

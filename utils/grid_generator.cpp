@@ -1,6 +1,7 @@
 #include <vector>
 
 #include "utils/grid_generator.hpp"
+#include "utils/vector.hpp"
 
 #include "exceptions/vector_matrix_exceptions.hpp"
 #include "exceptions/intervals_exceptions.hpp"

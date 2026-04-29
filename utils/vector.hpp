@@ -4,6 +4,7 @@
 #include <initializer_list>
 #include <numeric>
 #include <string>
+#include <ostream>
 #include <type_traits>
 #include <vector>
 
@@ -33,7 +34,6 @@ class Vector {
     }
 
 public:
-    using value_type = T;
     using iterator = typename std::vector<T>::iterator;
     using const_iterator = typename std::vector<T>::const_iterator;
 
@@ -106,6 +106,16 @@ public:
 
     friend Vector operator*(T scalar, const Vector& v) {
         return v * scalar;
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const Vector& v) {
+        os << "[";
+        for (size_t i = 0; i < v.size(); ++i) {
+            if (i != 0) os << ", ";
+            os << v[i];
+        }
+        os << "]";
+        return os;
     }
 
     T dot(const Vector& other) const {
