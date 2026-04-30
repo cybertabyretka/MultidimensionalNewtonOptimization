@@ -76,6 +76,8 @@ Vector<double> NewtonOptimizer::regularized_newton_direction(
     if (logs) {
         std::cout << "[Newton] Hessian at x = " << x << ":\n" << H << '\n';
     }
+
+    // Start with the raw Hessian and progressively shift the diagonal if needed.
     Matrix<double> H_reg = H;
     double lambda = 0.0;
 
@@ -110,6 +112,7 @@ Vector<double> NewtonOptimizer::regularized_newton_direction(
             continue;
         }
 
+        // Solve H d = -g. A valid Newton step must also be a descent direction.
         Vector<double> d = Matrix<double>::solve(H_reg, g * -1.0);
         if (logs) {
             std::cout << "[Newton] Candidate Newton direction d = " << d
@@ -119,6 +122,7 @@ Vector<double> NewtonOptimizer::regularized_newton_direction(
             return d;
         }
     }
+    // Safe fallback if the regularized Newton step cannot produce descent.
     if (logs) {
         std::cout << "[Newton] Falling back to steepest descent direction d = -g\n";
     }
@@ -169,6 +173,7 @@ NewtonResult NewtonOptimizer::solve_from_start(
         double dir_deriv = g.dot(d);
 
         if (dir_deriv >= 0.0) {
+            // Enforce descent explicitly if the Newton direction is numerically unsafe.
             if (logs) {
                 std::cout << "[Newton] Direction is not descent, fallback to -grad.\n";
             }
@@ -189,6 +194,7 @@ NewtonResult NewtonOptimizer::solve_from_start(
             try {
                 fc = objective_(candidate);
             } catch (const std::exception&) {
+                // Objective evaluation may fail for invalid trial points; backtrack.
                 if (logs) {
                     std::cout << "  alpha = " << alpha
                               << " -> objective evaluation failed, backtracking.\n";
@@ -242,6 +248,7 @@ NewtonResult NewtonOptimizer::solve_from_start(
             std::cout << "  x_{k+1} = " << x << '\n'
                       << "  f(x_{k+1}) = " << fx << '\n';
         }
+        // Protect against numerical blow-up before the next iteration.
         for (double v : x) {
             if (std::isnan(v) || std::isinf(v)) {
                 throw NumericalError("Divergence or overflow in Newton iteration");

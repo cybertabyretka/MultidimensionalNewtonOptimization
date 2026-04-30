@@ -34,6 +34,7 @@ int main() {
     test_optimizer_saddle_point();
     test_optimizer_multiple_minima();
     
+    // Derivatives tests
     test_numerical_gradient();
     test_numerical_hessian();
     return 0;

@@ -11,6 +11,10 @@
 
 #include "exceptions/vector_matrix_exceptions.hpp"
 
+/**
+ * @brief A dense row-major matrix with common linear algebra operations.
+ * @tparam T Arithmetic element type, excluding bool.
+ */
 template <typename T>
 class Matrix {
     static_assert(
@@ -22,8 +26,20 @@ class Matrix {
     size_t rows_, cols_;
     std::vector<T> data_;
 
+    /**
+     * @brief Converts a 2D index into a flat row-major index.
+     * @param r Row index.
+     * @param c Column index.
+     * @return Flat index into the storage vector.
+     */
     size_t idx(size_t r, size_t c) const { return r * cols_ + c; }
 
+    /**
+     * @brief Validates matrix coordinates.
+     * @param r Row index.
+     * @param c Column index.
+     * @throw std::out_of_range If coordinates are outside the matrix bounds.
+     */
     void check_bounds(size_t r, size_t c) const {
         if (r >= rows_ || c >= cols_) {
             throw std::out_of_range("Matrix index out of bounds");
@@ -31,17 +47,52 @@ class Matrix {
     }
 
 public:
-    Matrix(size_t r = 0, size_t c = 0, T val = T{}) 
-        : rows_(r), 
-          cols_(c), 
+    /**
+     * @brief Constructs a matrix with given dimensions and fill value.
+     * @param r Number of rows.
+     * @param c Number of columns.
+     * @param val Initial value for all elements.
+     */
+    Matrix(size_t r = 0, size_t c = 0, T val = T{})
+        : rows_(r),
+          cols_(c),
           data_(r * c, val) {}
 
+    /**
+     * @brief Returns the number of rows.
+     * @return Row count.
+     */
     size_t rows() const noexcept { return rows_; }
+
+    /**
+     * @brief Returns the number of columns.
+     * @return Column count.
+     */
     size_t cols() const noexcept { return cols_; }
 
+    /**
+     * @brief Accesses an element with bounds checking.
+     * @param r Row index.
+     * @param c Column index.
+     * @return Constant reference to the element.
+     * @throw std::out_of_range If coordinates are outside the matrix bounds.
+     */
     const T& at(size_t r, size_t c) const { check_bounds(r, c); return data_[idx(r, c)]; }
+
+    /**
+     * @brief Accesses an element with bounds checking.
+     * @param r Row index.
+     * @param c Column index.
+     * @return Mutable reference to the element.
+     * @throw std::out_of_range If coordinates are outside the matrix bounds.
+     */
     T& at(size_t r, size_t c) { check_bounds(r, c); return data_[idx(r, c)]; }
 
+    /**
+     * @brief Builds an identity matrix.
+     * @param n Matrix size.
+     * @return n-by-n identity matrix.
+     */
     static Matrix identity(size_t n) {
         Matrix I(n, n, T{});
         for (size_t i = 0; i < n; ++i) I.at(i, i) = T{1};
@@ -84,6 +135,8 @@ public:
         for (size_t i = 0; i < rows_; ++i) {
             for (size_t k = 0; k < cols_; ++k) {
                 const T aik = at(i, k);
+                // Reuse the current left-hand coefficient across the whole row
+                // of the right-hand matrix to reduce repeated lookups.
                 for (size_t j = 0; j < other.cols_; ++j) {
                     res.at(i, j) += aik * other.at(k, j);
                 }
@@ -127,6 +180,10 @@ public:
         return os;
     }
 
+    /**
+     * @brief Returns the transposed matrix.
+     * @return Transposed matrix.
+     */
     Matrix transpose() const {
         Matrix res(cols_, rows_, T{});
         for (size_t i = 0; i < rows_; ++i) {
@@ -137,6 +194,11 @@ public:
         return res;
     }
 
+    /**
+     * @brief Checks whether the matrix is symmetric.
+     * @param tol Absolute tolerance for element comparison.
+     * @return true if the matrix is square and symmetric within tolerance.
+     */
     bool is_symmetric(double tol = 1e-12) const {
         if (rows_ != cols_) return false;
         for (size_t i = 0; i < rows_; ++i) {
@@ -149,6 +211,16 @@ public:
         return true;
     }
 
+    /**
+     * @brief Checks whether the matrix is positive definite.
+     *
+     * The implementation uses a Cholesky-style decomposition test:
+     * diagonal entries must remain positive while the lower-triangular factors
+     * are built incrementally.
+     *
+     * @param tol Numerical tolerance used for stability checks.
+     * @return true if the matrix is symmetric positive definite.
+     */
     bool is_positive_definite(double tol = 1e-12) const {
         if (rows_ != cols_) return false;
         if (!is_symmetric(1e-10)) return false;
@@ -160,6 +232,7 @@ public:
         for (size_t i = 0; i < n; ++i) {
             for (size_t j = 0; j <= i; ++j) {
                 double sum = static_cast<double>(at(i, j));
+                // Subtract previously computed factor contributions.
                 for (size_t k = 0; k < j; ++k) {
                     sum -= L.at(i, k) * L.at(j, k);
                 }
@@ -176,6 +249,17 @@ public:
         return true;
     }
 
+    /**
+     * @brief Solves a linear system A x = b using Gauss-Jordan elimination.
+     *
+     * Partial pivoting is used to improve numerical stability.
+     *
+     * @param A Coefficient matrix.
+     * @param b Right-hand side vector.
+     * @return Solution vector x.
+     * @throw DimensionMismatchError If A is not square or dimensions do not match.
+     * @throw SingularMatrixError If the matrix is singular or nearly singular.
+     */
     static Vector<T> solve(Matrix A, Vector<T> b) {
         if (A.rows_ != A.cols_) {
             throw DimensionMismatchError("Matrix must be square for solve");
@@ -191,6 +275,7 @@ public:
             size_t pivot_row = col;
             double max_val = std::abs(static_cast<double>(A.at(col, col)));
 
+            // Select the row with the largest absolute pivot in the current column.
             for (size_t row = col + 1; row < n; ++row) {
                 const double candidate = std::abs(static_cast<double>(A.at(row, col)));
                 if (candidate > max_val) {
@@ -209,12 +294,14 @@ public:
             }
 
             const T pivot = A.at(col, col);
+            // Normalize the pivot row so the pivot becomes 1.
             for (size_t j = 0; j < n; ++j) {
                 if (j != col) A.at(col, j) /= pivot;
             }
             b[col] /= pivot;
             A.at(col, col) = T{1};
 
+            // Eliminate the current column from all other rows.
             for (size_t row = 0; row < n; ++row) {
                 if (row == col) continue;
                 const T factor = A.at(row, col);

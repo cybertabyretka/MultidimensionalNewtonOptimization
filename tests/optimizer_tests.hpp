@@ -16,14 +16,16 @@
 #include "exceptions/intervals_exceptions.hpp"
 #include "exceptions/optimization_exceptions.hpp"
 
-// TEST 5: Optimizer - Simple quadratic function (штатная ситуация)
-// Функция: f(x) = x1^2 + x2^2, минимум в (0, 0), значение 0
+/**
+ * @brief Optimizer - Simple quadratic function (standard case)
+ * 
+ * Function: f(x) = x1^2 + x2^2, minimum at (0, 0), value 0
+ */
 void test_optimizer_quadratic() {
     try {
         auto f = [](const Vector<double>& x) -> double {
             return x[0] * x[0] + x[1] * x[1];
         };
-
         NewtonOptimizerConfig cfg;
         cfg.problem.objective = f;
         cfg.search.lower_bound = Vector<double>{-5.0, -5.0};
@@ -33,21 +35,16 @@ void test_optimizer_quadratic() {
         cfg.numeric.grad_tol = 1e-6;
         cfg.numeric.gradient_step = 1e-6;
         cfg.numeric.hessian_step = 1e-4;
-
         NewtonOptimizer optimizer(cfg);
-        
-        // Запуск из одной стартовой точки
+        // Run from one starting point
         NewtonResult result = optimizer.optimize(Vector<double>{2.0, 3.0}, false);
-        
-        // Проверка сходимости
+        // Check convergence
         if (!result.converged)
             throw std::logic_error("Optimizer did not converge for simple quadratic");
-        
-        // Проверка того, что найденная точка близка к (0, 0)
+        // Check that the found point is close to (0, 0)
         if (!result.point.equals(Vector<double>{0.0, 0.0}, 1e-4))
             throw std::logic_error("Solution not close to (0,0)");
-        
-        // Проверка значения функции в найденной точке
+        // Check the function value at the found point
         double f_at_solution = f(result.point);
         if (!double_equals(f_at_solution, 0.0, 1e-6))
             throw std::logic_error("Function value at solution not close to 0");
@@ -56,16 +53,18 @@ void test_optimizer_quadratic() {
     }
 }
 
-// TEST 6: Optimizer - Rosenbrock function (сложная штатная ситуация)
-// Классическая функция: f(x1,x2) = (1-x1)^2 + 100*(x2-x1^2)^2
-// Минимум в (1, 1), значение 0.
+/**
+ * @brief Optimizer - Rosenbrock function (hard standard case)
+ * 
+ * Classic function: f(x1,x2) = (1-x1)^2 + 100*(x2-x1^2)^2.
+ * Minimum at (1, 1), value 0.
+ */
 void test_optimizer_rosenbrock() {
     try {
         auto f = [](const Vector<double>& x) -> double {
             const double x1 = x[0], x2 = x[1];
             return (1.0 - x1) * (1.0 - x1) + 100.0 * (x2 - x1 * x1) * (x2 - x1 * x1);
         };
-
         NewtonOptimizerConfig cfg;
         cfg.problem.objective = f;
         cfg.search.lower_bound = Vector<double>{-2.0, -2.0};
@@ -75,26 +74,21 @@ void test_optimizer_rosenbrock() {
         cfg.numeric.grad_tol = 1e-6;
         cfg.numeric.gradient_step = 1e-6;
         cfg.numeric.hessian_step = 1e-4;
-
         NewtonOptimizer optimizer(cfg);
         std::vector<Vector<double>> starts;
         starts.push_back(Vector<double>{-1.0, -1.0});
         starts.push_back(Vector<double>{0.0, 0.0});
         starts.push_back(Vector<double>{1.5, 1.5});
-        
         optimizer.optimize(starts, false);
-        
-        // Проверка, что оптимизатор нашёл хотя бы одну точку
+        // Check that the optimizer found at least one point
         const auto& min_points = optimizer.get_minimum_points();
         if (min_points.empty())
             throw std::logic_error("No minimum points found for Rosenbrock");
-        
-        // Проверка, что лучшая точка близка к (1, 1)
+        // Check that the best point is close to (1, 1)
         const auto& best = min_points[0];
         if (!best.point.equals(Vector<double>{1.0, 1.0}, 5e-2))
             throw std::logic_error("Best solution not close to (1, 1)");
-        
-        // Проверка, что значение функции приемлемо
+        // Check that the function value is acceptable
         if (best.value > 1e-3)
             throw std::logic_error("Function value at best point too high");
     } catch (const std::exception& e) {
@@ -102,9 +96,12 @@ void test_optimizer_rosenbrock() {
     }
 }
 
-// TEST 7: Optimizer - Saddle point function (крайняя ситуация)
-// Функция: f(x1,x2) = (x1^2-1)^2 + (x2^2-1)^2 + 0.5*x1*x2
-// Минимумы близко к (±1, ±1), седловые точки в других местах
+/**
+ * @brief Optimizer - Saddle point function (extreme case)
+ * 
+ * Function: f(x1,x2) = (x1^2-1)^2 + (x2^2-1)^2 + 0.5*x1*x2. 
+ * Minima are near (±1, ±1), saddle points are elsewhere
+ */
 void test_optimizer_saddle_point() {
     try {
         auto f = [](const Vector<double>& x) -> double {
@@ -113,7 +110,6 @@ void test_optimizer_saddle_point() {
             const double term2 = (x2 * x2 - 1.0) * (x2 * x2 - 1.0);
             return term1 + term2 + 0.5 * x1 * x2;
         };
-
         NewtonOptimizerConfig cfg;
         cfg.problem.objective = f;
         cfg.search.lower_bound = Vector<double>{-2.0, -2.0};
@@ -124,22 +120,18 @@ void test_optimizer_saddle_point() {
         cfg.numeric.stationarity_tol = 1e-6;
         cfg.numeric.gradient_step = 1e-6;
         cfg.numeric.hessian_step = 1e-4;
-
         NewtonOptimizer optimizer(cfg);
         std::vector<Vector<double>> starts;
         starts.push_back(Vector<double>{0.5, 0.5});
         starts.push_back(Vector<double>{1.5, 1.5});
         starts.push_back(Vector<double>{-1.5, 1.5});
-        
         optimizer.optimize(starts, false);
-        
-        // Проверка, что найдены минимальные точки
+        // Check that minimum points were found
         const auto& min_points = optimizer.get_minimum_points();
         if (min_points.empty())
             throw std::logic_error("No minimum points found");
-        
-        // Проверка, что лучшая точка имеет приемлемое значение (близко к минимумам)
-        // Минимумы должны быть близко к (±1, ±1)
+        // Check that the best point has an acceptable value (close to the minima)
+        // Minima should be close to (±1, ±1)
         const auto& best = min_points[0];
         const bool x1_valid = (best.point[0] > 0.5 && best.point[0] < 1.5) ||
                               (best.point[0] < -0.5 && best.point[0] > -1.5);
@@ -152,8 +144,11 @@ void test_optimizer_saddle_point() {
     }
 }
 
-// TEST 8: Optimizer - Multiple local minima (крайняя ситуация)
-// Функция: f(x) = sin(pi*x1) * sin(pi*x2), несколько локальных минимумов и максимумов
+/**
+ * @brief Optimizer - Multiple local minima (extreme case)
+ * 
+ * Function: f(x) = sin(pi*x1) * sin(pi*x2), multiple local minima and maxima
+ */
 void test_optimizer_multiple_minima() {
     try {
         const double PI = std::numbers::pi;
@@ -161,7 +156,6 @@ void test_optimizer_multiple_minima() {
         auto f = [PI](const Vector<double>& x) -> double {
             return std::sin(PI * x[0]) * std::sin(PI * x[1]);
         };
-
         NewtonOptimizerConfig cfg;
         cfg.problem.objective = f;
         cfg.search.lower_bound = Vector<double>{-2.0, -2.0};
@@ -171,22 +165,17 @@ void test_optimizer_multiple_minima() {
         cfg.numeric.grad_tol = 1e-6;
         cfg.numeric.gradient_step = 1e-6;
         cfg.numeric.hessian_step = 1e-4;
-
         NewtonOptimizer optimizer(cfg);
         std::vector<Vector<double>> starts;
-        // Различные стартовые точки
+        // Different starting points
         starts.push_back(Vector<double>{0.3, 0.3});
         starts.push_back(Vector<double>{-0.3, 0.3});
         starts.push_back(Vector<double>{1.2, 1.2});
-        
         optimizer.optimize(starts, false);
-        
         const auto& min_points = optimizer.get_minimum_points();
-        
-        // Проверка, что найдено несколько различных минимумов или хотя бы один
+        // Check that several distinct minima were found, or at least one
         if (min_points.empty())
             throw std::logic_error("No minimum points found");
-
         if (min_points[0].value > -0.5)
             throw std::logic_error("Minimum point should have negative value");
     } catch (const std::exception& e) {
@@ -194,13 +183,15 @@ void test_optimizer_multiple_minima() {
     }
 }
 
-// TEST 9: Numerical gradient - normal, edge and exceptional cases
+/**
+ * @brief Numerical gradient - normal, edge and exceptional cases
+ */
 void test_numerical_gradient() {
     try {
         auto f = [](const Vector<double>& x) -> double {
             return x[0] * x[0] + 3.0 * x[1] * x[1];
         };
-        // Штатный случай
+        // Standard case
         {
             Vector<double> x{1.5, -2.0};
             Vector<double> g = numerical_gradient(f, x, 1e-6);
@@ -209,7 +200,7 @@ void test_numerical_gradient() {
             if (!g.equals(expected, 1e-4))
                 throw std::logic_error("Numerical gradient incorrect for quadratic function");
         }
-        // Крайний случай: очень маленькие значения
+        // Extreme case: very small values
         {
             Vector<double> x{1e-12, -1e-12};
             Vector<double> g = numerical_gradient(f, x, 1e-6);
@@ -217,7 +208,7 @@ void test_numerical_gradient() {
             if (!g.equals(expected, 1e-8))
                 throw std::logic_error("Numerical gradient inaccurate near zero");
         }
-        // Внештатный случай: objective бросает исключение
+        // Exceptional case: objective throws an exception
         {
             auto throwing_f = [](const Vector<double>& x) -> double {
                 if (x[0] > 0.4) {
@@ -235,23 +226,23 @@ void test_numerical_gradient() {
     }
 }
 
-// TEST 10: Numerical hessian - normal, edge and exceptional cases
+/**
+ * @brief Numerical hessian - normal, edge and exceptional cases
+ */
 void test_numerical_hessian() {
     try {
         auto f = [](const Vector<double>& x) -> double {
             return x[0] * x[0] + 3.0 * x[0] * x[1] + 2.0 * x[1] * x[1];
         };
-        // Штатный случай
+        // Standard case
         {
             Vector<double> x{1.0, -1.0};
             Matrix<double> H = numerical_hessian(f, x, 1e-4);
-
             Matrix<double> expected(2, 2, 0.0);
             expected.at(0, 0) = 2.0;
             expected.at(0, 1) = 3.0;
             expected.at(1, 0) = 3.0;
             expected.at(1, 1) = 4.0;
-
             for (size_t i = 0; i < 2; ++i) {
                 for (size_t j = 0; j < 2; ++j) {
                     if (!double_equals(H.at(i, j), expected.at(i, j), 1e-3))
@@ -259,12 +250,11 @@ void test_numerical_hessian() {
                 }
             }
         }
-        // Крайний случай: плоская функция около нуля
+        // Extreme case: flat function near zero
         {
             auto flat_f = [](const Vector<double>& x) -> double {
                 return x[0] * x[0] * x[0] * x[0] + x[1] * x[1] * x[1] * x[1];
             };
-
             Matrix<double> H = numerical_hessian(flat_f, Vector<double>{0.0, 0.0}, 1e-4);
             for (size_t i = 0; i < 2; ++i) {
                 for (size_t j = 0; j < 2; ++j) {
@@ -273,7 +263,7 @@ void test_numerical_hessian() {
                 }
             }
         }
-        // Внештатный случай: objective бросает исключение
+        // Exceptional case: objective throws an exception
         {
             auto throwing_f = [](const Vector<double>& x) -> double {
                 if (x[0] > 0.1) {
